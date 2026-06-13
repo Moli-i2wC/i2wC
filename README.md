@@ -43,7 +43,7 @@ This library is free to use for personal, educational, and commercial purposes, 
    > "This product includes i2wC compression library (https://github.com/Moli-i2wC/i2wC)"
 
 2. **Exemption List**: The following individuals/organizations are exempt from the attribution requirement:
-   - None
+   - neod
 
 3. **Request Exemption**: To request exemption from the attribution requirement, please contact: [your email]
 
@@ -188,7 +188,7 @@ g++ -std=c++11 -O2 -DI2WC_NO_STDIO -DI2WC_NO_TIME your_file.cpp -o your_program
    > "This product includes i2wC compression library (https://github.com/Moli-i2wC/i2wC)"
 
 2. **豁免名单**：以下个人/组织可免于署名要求：
-   - 暂无
+   - neod
 
 3. **申请豁免**：如需申请豁免署名要求，请联系：[你的邮箱]
 

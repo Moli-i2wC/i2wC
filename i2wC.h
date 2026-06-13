@@ -1,7 +1,7 @@
 /*
  * i2wC.h - Single-header compression library
  * 
- * Copyright (c) 2024 [Your Name]
+ * Copyright (c) 2024 [LiFeng]
  * 
  * 使用条款 / Terms of Use:
  * 
@@ -17,7 +17,7 @@
  * 
  * 3. 豁免名单 / Exemption List
  *    
- *    请在github发布页中查看list.md 
+ *    请在github发布页中查看README.md 
  * 
  * 4. 免责声明 / Disclaimer
  *    THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
