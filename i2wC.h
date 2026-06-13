@@ -1,7 +1,7 @@
 /*
  * i2wC.h - Single-header compression library
  * 
- * Copyright (c) 2024 [LiFeng]
+ * Copyright (c) 2024 [璃风]
  * 
  * 使用条款 / Terms of Use:
  * 
@@ -29,6 +29,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <map>
 #include <cstring>
 #include <vector>
 #include <string>
@@ -36,6 +37,7 @@
 #include <stdexcept>
 #include <ios>
 #include <cstdio>
+#include <unordered_map>
 
 #if defined(__STRICT_ANSI__)
 #define IW_FORCEINLINE
@@ -8587,6 +8589,8 @@ extern "C"
 
 namespace i2wC {
 	
+	// ========================== 原有枚举、结构体、辅助类 ==========================
+	
 	enum class Error {
 		OK = 0,
 		INVALID_PARAMETER,
@@ -8641,59 +8645,26 @@ namespace i2wC {
 	};
 	
 	namespace internal {
-		
 		inline const iw_uint* getProbesArray(const AdvancedConfig* config = nullptr) {
 			static const iw_uint defaultProbes[11] = { 0, 2, 8, 48, 24, 48, 192, 384, 768, 1024, 2048 };
 			return config ? config->probes : defaultProbes;
 		}
-		
 		inline iw_uint getProbeForLevel(int level, const AdvancedConfig* config = nullptr) {
 			const iw_uint* probes = getProbesArray(config);
 			if (level < 0) level = 0;
 			if (level > 10) level = 10;
 			return probes[level];
 		}
-		
-		inline int getLZHashBits(const AdvancedConfig* config = nullptr) {
-			return config ? config->lzHashBits : 14;
-		}
-		
-		inline size_t getLZDictSize(const AdvancedConfig* config = nullptr) {
-			return config ? config->lzDictSize : 65536;
-		}
-		
-		inline int getMinMatchLen(const AdvancedConfig* config = nullptr) {
-			return config ? config->minMatchLen : 4;
-		}
-		
-		inline int getMaxMatchLen(const AdvancedConfig* config = nullptr) {
-			return config ? config->maxMatchLen : 260;
-		}
-		
-		inline int getFastLookupBits(const AdvancedConfig* config = nullptr) {
-			return config ? config->fastLookupBits : 11;
-		}
-		
-		inline uint32_t getAdler32Init(const AdvancedConfig* config = nullptr) {
-			return config ? config->adler32Init : 0x2C57;
-		}
-		
-		inline size_t getAdler32Chunk(const AdvancedConfig* config = nullptr) {
-			return config ? config->adler32Chunk : 4444;
-		}
-		
-		inline size_t getZipMaxIOBufSize(const AdvancedConfig* config = nullptr) {
-			return config ? config->zipMaxIOBufSize : 128 * 1024;
-		}
-		
-		inline uint8_t getZlibCMF(const AdvancedConfig* config = nullptr) {
-			return config ? config->zlibCMF : 0x68;
-		}
-		
-		inline uint8_t getZlibFLevel(const AdvancedConfig* config = nullptr) {
-			return config ? config->zlibFLevel : 2;
-		}
-		
+		inline int getLZHashBits(const AdvancedConfig* config = nullptr) { return config ? config->lzHashBits : 14; }
+		inline size_t getLZDictSize(const AdvancedConfig* config = nullptr) { return config ? config->lzDictSize : 65536; }
+		inline int getMinMatchLen(const AdvancedConfig* config = nullptr) { return config ? config->minMatchLen : 4; }
+		inline int getMaxMatchLen(const AdvancedConfig* config = nullptr) { return config ? config->maxMatchLen : 260; }
+		inline int getFastLookupBits(const AdvancedConfig* config = nullptr) { return config ? config->fastLookupBits : 11; }
+		inline uint32_t getAdler32Init(const AdvancedConfig* config = nullptr) { return config ? config->adler32Init : 0x2C57; }
+		inline size_t getAdler32Chunk(const AdvancedConfig* config = nullptr) { return config ? config->adler32Chunk : 4444; }
+		inline size_t getZipMaxIOBufSize(const AdvancedConfig* config = nullptr) { return config ? config->zipMaxIOBufSize : 128 * 1024; }
+		inline uint8_t getZlibCMF(const AdvancedConfig* config = nullptr) { return config ? config->zlibCMF : 0x68; }
+		inline uint8_t getZlibFLevel(const AdvancedConfig* config = nullptr) { return config ? config->zlibFLevel : 2; }
 	}
 	
 	class ErrorHandler {
@@ -8823,16 +8794,13 @@ namespace i2wC {
 		size_t expansionCount_;
 	};
 	
-	static inline Result compress(const void* data, size_t size, std::vector<unsigned char>& out, 
-								  int level = 6, const AdvancedConfig* config = nullptr)
-	{
+	static inline Result compress(const void* data, size_t size, std::vector<unsigned char>& out,
+								  int level = 6, const AdvancedConfig* config = nullptr) {
 		if (!data || size == 0) {
 			ErrorHandler::instance().report(Error::INVALID_PARAMETER, "compress: null data or zero size");
 			return Error::INVALID_PARAMETER;
 		}
-		
 		(void)config;
-		
 		iw_ulong destLen = iw_compressBound((iw_ulong)size);
 		out.resize(destLen);
 		int ret = iw_compress2(out.data(), &destLen, (const unsigned char*)data, (iw_ulong)size, level);
@@ -8850,8 +8818,7 @@ namespace i2wC {
 	}
 	
 	static inline Result uncompress(const void* data, size_t size, std::vector<unsigned char>& out,
-									const DecompressConfig& config = DecompressConfig())
-	{
+									const DecompressConfig& config = DecompressConfig()) {
 		if (!data || size == 0) {
 			ErrorHandler::instance().report(Error::INVALID_PARAMETER, "uncompress: null data or zero size");
 			return Error::INVALID_PARAMETER;
@@ -8889,15 +8856,13 @@ namespace i2wC {
 		return Error::OK;
 	}
 	
-	static inline std::vector<unsigned char> compress(const std::vector<unsigned char>& in, int level = 6)
-	{
+	static inline std::vector<unsigned char> compress(const std::vector<unsigned char>& in, int level = 6) {
 		std::vector<unsigned char> out;
 		compress(in.data(), in.size(), out, level);
 		return out;
 	}
 	
-	static inline std::vector<unsigned char> uncompress(const std::vector<unsigned char>& in)
-	{
+	static inline std::vector<unsigned char> uncompress(const std::vector<unsigned char>& in) {
 		std::vector<unsigned char> out;
 		uncompress(in.data(), in.size(), out);
 		return out;
@@ -8905,8 +8870,7 @@ namespace i2wC {
 	
 	class Compressor {
 	public:
-		
-		explicit Compressor(int level = 6) : level_(clampLevel(level)) {}
+		explicit Compressor(int level = 6) : level_(clampLevel(level)), config_(nullptr) {}
 		
 		void setLevel(int level) { level_ = clampLevel(level); }
 		int getLevel() const { return level_; }
@@ -8914,16 +8878,16 @@ namespace i2wC {
 		const AdvancedConfig* getAdvancedConfig() const { return config_; }
 		
 		Result compress(const void* data, size_t size, std::vector<unsigned char>& out) {
-			return i2wC::compress(data, size, out, level_);
+			return i2wC::compress(data, size, out, level_, config_);
 		}
 		
 		Result compress(const std::vector<unsigned char>& input, std::vector<unsigned char>& out) {
-			return i2wC::compress(input.data(), input.size(), out, level_);
+			return i2wC::compress(input.data(), input.size(), out, level_, config_);
 		}
 		
 		std::vector<unsigned char> compress(const std::vector<unsigned char>& input) {
 			std::vector<unsigned char> out;
-			i2wC::compress(input.data(), input.size(), out, level_);
+			i2wC::compress(input.data(), input.size(), out, level_, config_);
 			return out;
 		}
 		
@@ -8947,13 +8911,10 @@ namespace i2wC {
 			switch (clampLevel(level)) {
 				case 0:  return "No Compression";
 				case 1:  return "Fastest";
-			case 2:
-			case 3:
-			case 4:
+				case 2: case 3: case 4: return "Fast";
 				case 5:  return "Fast";
 				case 6:  return "Default";
-			case 7:
-				case 8:  return "Better";
+				case 7: case 8: return "Better";
 				case 9:  return "Best";
 				case 10: return "Uber";
 				default: return "Unknown";
@@ -8967,6 +8928,283 @@ namespace i2wC {
 		
 		static int clampLevel(int level) { return level < 0 ? 0 : (level > 10 ? 10 : level); }
 	};
+	
+	// ========================== .neod 支持新增类 ==========================
+	
+	class NeodHashTable {
+	public:
+		using EntryData = std::vector<uint8_t>;
+		
+		size_t addEntry(const std::string& key, const EntryData& data) {
+			size_t hash = hashKey(key);
+			entries_[hash] = data;
+			if (hash >= capacity_) capacity_ = hash + 1;
+			return hash;
+		}
+		
+		bool getEntry(size_t hash, EntryData& out) const {
+			auto it = entries_.find(hash);
+			if (it == entries_.end()) return false;
+			out = it->second;
+			return true;
+		}
+		
+		bool removeEntry(size_t hash) { return entries_.erase(hash) > 0; }
+		void clear() { entries_.clear(); capacity_ = 0; }
+		const std::unordered_map<size_t, EntryData>& getAllEntries() const { return entries_; }
+		size_t getCapacity() const { return capacity_; }
+		size_t getMaxEntrySize() const {
+			size_t maxSize = 0;
+			for (const auto& pair : entries_)
+				if (pair.second.size() > maxSize) maxSize = pair.second.size();
+			return maxSize;
+		}
+		
+	private:
+		friend class NeodBuilder;  // 允许 NeodBuilder 访问私有成员
+		
+		static size_t hashKey(const std::string& key) {
+			size_t h = 0;
+			for (char c : key) h += static_cast<unsigned char>(c);
+			return h;
+		}
+		std::unordered_map<size_t, EntryData> entries_;
+		size_t capacity_ = 0;
+	};
+	
+	class NeodBuilder {
+	public:
+		// .neod 文件头结构（64 字节）
+#pragma pack(push, 1)
+		struct NeodHeader {
+	uint32_t magic;
+	uint16_t verMajor;
+	uint16_t verMinor;
+	uint64_t compressedSize;
+	uint64_t uncompressedSize;
+	uint64_t metaOffset;
+	uint64_t metaSize;
+	uint32_t tableCount;
+	uint32_t tableTypes[4];
+	uint32_t reserved;
+};
+#pragma pack(pop)
+		
+		NeodBuilder() : compressionLevel_(6), magic_(0x4E454F44) {
+			tableTypes_[0] = 0;
+			tableTypes_[1] = 1;
+			tableTypes_[2] = 2;
+			tableTypes_[3] = 3;
+		}
+		
+		void setMagic(uint32_t magic) { magic_ = magic; }
+		void setCompressionLevel(int level) { compressionLevel_ = std::max(0, std::min(10, level)); }
+		
+		void setMeta(const std::string& key, const std::vector<uint8_t>& value) { meta_[key] = value; }
+		void setMeta(const std::string& key, const std::string& value) {
+			meta_[key] = std::vector<uint8_t>(value.begin(), value.end());
+		}
+		void setMeta(const std::string& key, uint32_t value) {
+			std::vector<uint8_t> buf(4);
+			buf[0] = value & 0xFF;
+			buf[1] = (value >> 8) & 0xFF;
+			buf[2] = (value >> 16) & 0xFF;
+			buf[3] = (value >> 24) & 0xFF;
+			meta_[key] = buf;
+		}
+		bool getMeta(const std::string& key, std::vector<uint8_t>& out) const {
+			auto it = meta_.find(key);
+			if (it == meta_.end()) return false;
+			out = it->second;
+			return true;
+		}
+		
+		NeodHashTable& getStructureTable() { return tables_[0]; }
+		NeodHashTable& getBlockItemTable() { return tables_[1]; }
+		NeodHashTable& getEntityTable()   { return tables_[2]; }
+		NeodHashTable& getRecipeTable()   { return tables_[3]; }
+		
+		void addStructureEntry(const std::string& key, const std::vector<uint8_t>& data) { tables_[0].addEntry(key, data); }
+		void addBlockItemEntry(const std::string& key, const std::vector<uint8_t>& data) { tables_[1].addEntry(key, data); }
+		void addEntityEntry(const std::string& key, const std::vector<uint8_t>& data) { tables_[2].addEntry(key, data); }
+		void addRecipeEntry(const std::string& key, const std::vector<uint8_t>& data) { tables_[3].addEntry(key, data); }
+		
+		Result serialize(std::vector<uint8_t>& output) {
+			// 元数据区
+			std::vector<uint8_t> metaRaw;
+			for (const auto& pair : meta_) {
+				const std::string& key = pair.first;
+				const std::vector<uint8_t>& val = pair.second;
+				if (key.empty() || key.size() > 255) return Error::INVALID_PARAMETER;
+				uint8_t keyLen = static_cast<uint8_t>(key.size());
+				metaRaw.push_back(keyLen);
+				metaRaw.insert(metaRaw.end(), key.begin(), key.end());
+				if (val.size() > 65535) return Error::INVALID_PARAMETER;
+				uint16_t valLen = static_cast<uint16_t>(val.size());
+				metaRaw.push_back(valLen & 0xFF);
+				metaRaw.push_back((valLen >> 8) & 0xFF);
+				metaRaw.insert(metaRaw.end(), val.begin(), val.end());
+			}
+			metaRaw.push_back(0);
+			
+			// 四个表数据
+			std::vector<uint8_t> tablesData;
+			for (int i = 0; i < 4; ++i) {
+				const auto& table = tables_[i];
+				const auto& entries = table.getAllEntries();
+				if (entries.empty()) {
+					uint8_t zeroHeader[32] = {0};
+					tablesData.insert(tablesData.end(), zeroHeader, zeroHeader + 32);
+					continue;
+				}
+				size_t capacity = table.getCapacity();
+				size_t maxEntrySize = table.getMaxEntrySize();
+				if (capacity == 0) continue;
+				
+				uint32_t entrySize = static_cast<uint32_t>(maxEntrySize);
+				uint32_t cap = static_cast<uint32_t>(capacity);
+				uint32_t entryCount = static_cast<uint32_t>(entries.size());
+				uint64_t maxHash = 0;
+				for (const auto& pair : entries) if (pair.first > maxHash) maxHash = pair.first;
+				
+				auto write32 = [&](uint32_t v) {
+					tablesData.push_back(v & 0xFF);
+					tablesData.push_back((v >> 8) & 0xFF);
+					tablesData.push_back((v >> 16) & 0xFF);
+					tablesData.push_back((v >> 24) & 0xFF);
+				};
+				auto write64 = [&](uint64_t v) {
+					write32(static_cast<uint32_t>(v));
+					write32(static_cast<uint32_t>(v >> 32));
+				};
+				write32(entrySize);
+				write32(cap);
+				write32(entryCount);
+				write32(0); // reserved
+				write64(maxHash);
+				write32(32); // slots offset
+				write32(0);  // padding
+				
+				std::vector<uint8_t> slots(cap * entrySize, 0);
+				for (const auto& pair : entries) {
+					size_t idx = pair.first;
+					if (idx >= cap) continue;
+					const auto& data = pair.second;
+					size_t copyBytes = std::min(data.size(), (size_t)entrySize);
+					memcpy(slots.data() + idx * entrySize, data.data(), copyBytes);
+				}
+				tablesData.insert(tablesData.end(), slots.begin(), slots.end());
+			}
+			
+			// 合并未压缩数据
+			std::vector<uint8_t> uncompressed;
+			uncompressed.insert(uncompressed.end(), metaRaw.begin(), metaRaw.end());
+			uncompressed.insert(uncompressed.end(), tablesData.begin(), tablesData.end());
+			
+			// 压缩
+			std::vector<uint8_t> compressed;
+			if (compressionLevel_ == 0) {
+				compressed = uncompressed;
+			} else {
+				Compressor comp(compressionLevel_);
+				Result r = comp.compress(uncompressed, compressed);
+				if (!r) return r;
+			}
+			
+			// 文件头
+			NeodHeader header;
+			header.magic = magic_;
+			header.verMajor = 1;
+			header.verMinor = 0;
+			header.compressedSize = compressed.size();
+			header.uncompressedSize = uncompressed.size();
+			header.metaOffset = 0;
+			header.metaSize = metaRaw.size();
+			header.tableCount = 4;
+			memcpy(header.tableTypes, tableTypes_, sizeof(tableTypes_));
+			header.reserved = 0;
+			
+			output.resize(64 + compressed.size());
+			memcpy(output.data(), &header, 64);
+			memcpy(output.data() + 64, compressed.data(), compressed.size());
+			return Error::OK;
+		}
+		
+		Result deserialize(const std::vector<uint8_t>& data) {
+			if (data.size() < 64) return Error::INVALID_PARAMETER;
+			NeodHeader header;
+			memcpy(&header, data.data(), 64);
+			if (header.magic != magic_) return Error::MAGIC_MISMATCH;
+			
+			std::vector<uint8_t> uncompressed;
+			if (compressionLevel_ == 0) {
+				uncompressed.assign(data.begin() + 64, data.begin() + 64 + header.compressedSize);
+			} else {
+				Compressor comp(compressionLevel_);
+				Result r = comp.uncompress(data.data() + 64, header.compressedSize, uncompressed);
+				if (!r) return r;
+				if (uncompressed.size() != header.uncompressedSize) return Error::DECOMPRESSION_FAILED;
+			}
+			
+			const uint8_t* pos = uncompressed.data();
+			const uint8_t* end = pos + uncompressed.size();
+			
+			// 解析元数据
+			meta_.clear();
+			while (pos < end) {
+				uint8_t keyLen = *pos++;
+				if (keyLen == 0) break;
+				if (pos + keyLen > end) return Error::INVALID_PARAMETER;
+				std::string key(pos, pos + keyLen);
+				pos += keyLen;
+				if (pos + 2 > end) return Error::INVALID_PARAMETER;
+				uint16_t valLen = pos[0] | (pos[1] << 8);
+				pos += 2;
+				if (pos + valLen > end) return Error::INVALID_PARAMETER;
+				std::vector<uint8_t> val(pos, pos + valLen);
+				pos += valLen;
+				meta_[key] = val;
+			}
+			
+			// 解析四个表
+			for (int i = 0; i < 4; ++i) {
+				tables_[i].clear();
+				if (pos + 32 > end) return Error::INVALID_PARAMETER;
+				uint32_t entrySize = pos[0] | (pos[1]<<8) | (pos[2]<<16) | (pos[3]<<24);
+				uint32_t capacity  = pos[4] | (pos[5]<<8) | (pos[6]<<16) | (pos[7]<<24);
+				// 跳过 reserved(4) + maxHash(8) + slotsOffset(8) = 20 字节
+				pos += 32;
+				size_t slotsSize = static_cast<size_t>(capacity) * entrySize;
+				if (pos + slotsSize > end) return Error::INVALID_PARAMETER;
+				const uint8_t* slots = pos;
+				pos += slotsSize;
+				
+				// 直接访问 NeodHashTable 的私有成员（因为友元）
+				for (uint32_t idx = 0; idx < capacity; ++idx) {
+					const uint8_t* slotData = slots + idx * entrySize;
+					bool allZero = true;
+					for (size_t j = 0; j < entrySize; ++j) {
+						if (slotData[j] != 0) { allZero = false; break; }
+					}
+					if (!allZero) {
+						std::vector<uint8_t> entry(slotData, slotData + entrySize);
+						tables_[i].entries_[idx] = std::move(entry);
+					}
+				}
+				tables_[i].capacity_ = capacity;
+			}
+			return Error::OK;
+		}
+		
+	private:
+		uint32_t magic_;
+		int compressionLevel_;
+		std::map<std::string, std::vector<uint8_t>> meta_;
+		NeodHashTable tables_[4];
+		uint32_t tableTypes_[4];
+	};
+	
+	// ========================== 原有的 BinaryFile 类（完整实现 + neod 扩展） ==========================
 	
 	class BinaryFile {
 	public:
@@ -9075,6 +9313,16 @@ namespace i2wC {
 		bool isCompressionEnabled() const { return (header_.flags & FLAG_COMPRESSED) != 0; }
 		
 		Result serialize(std::vector<unsigned char>& out) {
+			// 若启用了 neod 模式，委托给 neodBuilder_
+			if (neodMode_) {
+				neodBuilder_.setMagic(neodMagic_);
+				// 可选：将 identifier/content 作为元数据
+				if (!identifierData_.empty()) neodBuilder_.setMeta("Identifier", identifierData_);
+				if (!contentData_.empty())   neodBuilder_.setMeta("Content", contentData_);
+				return neodBuilder_.serialize(out);
+			}
+			
+			// 原有序列化逻辑
 			std::vector<unsigned char> result;
 			uint32_t sectionCount = 0;
 			if (!identifierData_.empty()) sectionCount++;
@@ -9134,6 +9382,20 @@ namespace i2wC {
 		}
 		
 		Result deserialize(const void* data, size_t size) {
+			if (neodMode_) {
+				neodBuilder_.setMagic(neodMagic_);
+				std::vector<uint8_t> vec(static_cast<const uint8_t*>(data), static_cast<const uint8_t*>(data) + size);
+				Result r = neodBuilder_.deserialize(vec);
+				if (r) {
+					// 从元数据恢复 identifier/content
+					std::vector<uint8_t> id, cont;
+					if (neodBuilder_.getMeta("Identifier", id)) identifierData_ = std::move(id);
+					if (neodBuilder_.getMeta("Content", cont)) contentData_ = std::move(cont);
+				}
+				return r;
+			}
+			
+			// 原有反序列化逻辑
 			const unsigned char* ptr = static_cast<const unsigned char*>(data);
 			const unsigned char* end = ptr + size;
 			
@@ -9231,7 +9493,9 @@ namespace i2wC {
 			return Error::OK;
 		}
 		
-		Result deserialize(const std::vector<unsigned char>& data) { return deserialize(data.data(), data.size()); }
+		Result deserialize(const std::vector<unsigned char>& data) {
+			return deserialize(data.data(), data.size());
+		}
 		
 		Result saveToFile(const std::string& filename) {
 			std::vector<unsigned char> data;
@@ -9286,6 +9550,29 @@ namespace i2wC {
 			os << "============================\n";
 		}
 		
+		// ---- neod 模式扩展 ----
+		void enableNeodMode(uint32_t magic = 0x4E454F44) {
+			neodMode_ = true;
+			neodMagic_ = magic;
+			neodBuilder_.setMagic(magic);
+		}
+		bool isNeodMode() const { return neodMode_; }
+		
+		void setNeodMeta(const std::string& key, const std::vector<uint8_t>& value) {
+			neodBuilder_.setMeta(key, value);
+		}
+		void setNeodMeta(const std::string& key, const std::string& value) {
+			neodBuilder_.setMeta(key, value);
+		}
+		void setNeodMeta(const std::string& key, uint32_t value) {
+			neodBuilder_.setMeta(key, value);
+		}
+		
+		NeodHashTable& neodStructureTable() { return neodBuilder_.getStructureTable(); }
+		NeodHashTable& neodBlockItemTable() { return neodBuilder_.getBlockItemTable(); }
+		NeodHashTable& neodEntityTable()   { return neodBuilder_.getEntityTable(); }
+		NeodHashTable& neodRecipeTable()   { return neodBuilder_.getRecipeTable(); }
+		
 	private:
 		Header header_;
 		uint32_t footerMagic_ = DEFAULT_MAGIC_FOOTER;
@@ -9299,9 +9586,16 @@ namespace i2wC {
 		static uint32_t crc32(const void* data, size_t size) {
 			return iw_crc32(IW_CRC32_INIT, static_cast<const unsigned char*>(data), size);
 		}
-		static uint32_t crc32(const std::vector<unsigned char>& data) { return crc32(data.data(), data.size()); }
+		static uint32_t crc32(const std::vector<unsigned char>& data) {
+			return crc32(data.data(), data.size());
+		}
+		
+		// neod 模式成员
+		bool neodMode_ = false;
+		uint32_t neodMagic_ = 0x4E454F44;
+		NeodBuilder neodBuilder_;
 	};
 	
-}
+} // namespace i2wC
 
 #endif
